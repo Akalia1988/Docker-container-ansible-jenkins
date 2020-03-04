@@ -2,13 +2,13 @@ name: ansible
 artifact_id: ansible
 version: 2.8.5
 valinor:
-  organization: js071996
-  repository: docker-integration.cernerrepos.net
+  organization: Arsh
+  repository: https://github.com/Akalia1988/Docker-container-ansible-jenkins/edit/master/ansible-docker-master/project.yml
   language: other
   labels:
     enabled: true
-    prefix: com.cerner.
-    maintainer: jacob.snapp@cerner.com
+    prefix: 
+    maintainer: 
   output:
       verbose: true
       color: true
@@ -21,7 +21,7 @@ valinor:
     rspec: false
     teaspoon: false
   jenkins:
-    jenkins_home: https://jenkins.cerner.com/cts
+    jenkins_home: https://jenkins.com ( jenkins home address ) 
     jenkins_build_url: job/docker-build-to-artifactory
 github:
-  project_url: https://github.cerner.com/js071996/ansible
+  project_url: https://github.com/Akalia1988/Docker-container-ansible-jenkins/edit/master/ansible-docker-master/project.yml
