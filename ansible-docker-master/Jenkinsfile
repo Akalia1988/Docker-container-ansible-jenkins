@@ -1,0 +1,143 @@
+pipeline {
+
+    agent { label 'docker' }
+    options { buildDiscarder(logRotator(numToKeepStr: '20')) }
+
+    parameters {
+        string(
+            name: "gitUrl",
+            defaultValue: "",
+            description: "GitHub Repository URL"
+        )
+        string(
+            name: "gitBranch",
+            defaultValue: "master",
+            description: "GitHub Repository Branch"
+        )
+        choice(
+            name: "dockerImage",
+            choices: ["ansible:2.8.5-20190925T172157Z"],
+            description: "Ansible Docker Image"
+        )
+        string(
+            name: "vaultCredentialsId",
+            defaultValue: "ANSIBLE_VAULT_PASSWORD",
+            description: "Vault Credentials"
+        )
+        string(
+            name: "playbook",
+            defaultValue: "site.yml",
+            description: "Specify playbook (relative path)"
+        )
+        string(
+            name: "inventory",
+            defaultValue: "inventory",
+            description: "Specify inventory file (relative path) or comma separated host list"
+        )
+        string(
+            name: "limit",
+            defaultValue: '',
+            description: "Further limit selected hosts to an additional pattern"
+        )
+        string(
+            name: "tags",
+            defaultValue: '',
+            description: "Only run plays and tasks tagged with these values"
+        )
+        string(
+            name: "skippedTags",
+            defaultValue: '',
+            description: "Only run plays and tasks whose tags do not match these values"
+        )
+        string(
+            name: "startAtTask",
+            defaultValue: '',
+            description: "Start the playbook at the task matching this name"
+        )
+        string(
+            name: "forks",
+            defaultValue: "5",
+            description: "Specify number of parallel processes to use (default=5)"
+        )
+        booleanParam(
+            name: "hostKeyChecking",
+            defaultValue: false,
+            description: "Validate SSH server keys"
+        )
+        string(
+            name: "extras",
+            defaultValue: "-v",
+            description: "Any additional parameters to pass to the ansible-playbook command. The content is passed as is to the command line"
+        )
+    }
+
+    stages {
+        stage('checkout playbook repository'){
+            steps {
+                //checkout scm
+                git branch: "${params.gitBranch}", url: "${params.gitUrl}"
+            }
+        }
+
+        stage('build ansible container'){
+            steps {
+                script {
+
+                    withCredentials([string(credentialsId: "${params.vaultCredentialsId}", variable: "ANSIBLE_VAULT_PASSWORD")]){
+                        docker.image("docker-integration.cernerrepos.net/js071996/${params.dockerImage}").inside("--init"){
+
+                            stage('version check'){
+                                sh 'ansible --version'
+                                sh 'python --version'
+                            }
+
+                            stage('dependencies'){
+                                
+                                // install python pip requirements
+                                if (fileExists('requirements.txt')){
+                                    sh 'pip install --user --no-cache-dir -r requirements.txt'
+                                }
+
+                                // install ansible role dependencies
+                                if (fileExists('requirements.yml')){
+                                    sh 'ansible-galaxy install -r requirements.yml -p roles/'
+                                }
+
+                            }
+
+                            stage('run ansible container'){
+
+                                // Set environment variable for the ansible vault password.
+                                // - Base docker container has ansible vault password file that
+                                //   dynamically reads the vault password from environment var.
+                                // - Using shell export for security purposes (non persistent)
+                                // - ansiblePlaybook plugin has vault capabilities BUT
+                                //   stores secret in plain text in Jenkins workspace, hence
+                                //   it is not being used due to anonymous read access.
+                                // https://medium.com/aubergine-solutions/be-aware-of-anonymous-user-read-access-in-jenkins-62a6a7a78c01
+
+                                sh "export ANSIBLE_VAULT_PASSWORD=${ANSIBLE_VAULT_PASSWORD}"
+
+                                // Use Jenkins Ansible Plugin to handle execution
+                                // https://plugins.jenkins.io/ansible
+                                ansiColor('xterm'){
+                                    ansiblePlaybook(
+                                        playbook: "${params.playbook}",
+                                        inventory: "${params.inventory}",
+                                        limit: "${params.get('limit')}",
+                                        tags: "${params.get('tags')}",
+                                        skippedTags: "${params.get('skippedTags')}",
+                                        startAtTask: "${params.get('startAtTask')}",
+                                        forks: "${params.get('forks')}",
+                                        hostKeyChecking: "${params.get('hostKeyChecking')}",
+                                        extras: "${params.get('extras')}",
+                                        colorized: true)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

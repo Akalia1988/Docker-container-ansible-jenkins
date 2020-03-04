@@ -1,0 +1,27 @@
+name: ansible
+artifact_id: ansible
+version: 2.8.5
+valinor:
+  organization: js071996
+  repository: docker-integration.cernerrepos.net
+  language: other
+  labels:
+    enabled: true
+    prefix: com.cerner.
+    maintainer: jacob.snapp@cerner.com
+  output:
+      verbose: true
+      color: true
+  validate:
+    enabled: true
+    brakeman: false
+    bundle_audit: false
+    missing_translations: false
+    lint: false
+    rspec: false
+    teaspoon: false
+  jenkins:
+    jenkins_home: https://jenkins.cerner.com/cts
+    jenkins_build_url: job/docker-build-to-artifactory
+github:
+  project_url: https://github.cerner.com/js071996/ansible
